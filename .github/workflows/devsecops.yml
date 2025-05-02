@@ -1,0 +1,56 @@
+name: DevSecOps Scan
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y docker.io curl
+
+      - name: Start local lab
+        run: |
+          docker-compose up -d
+          sleep 30  # espera a que los servicios arranquen
+
+      - name: Trivy scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: .
+
+      - name: Run SonarQube scan
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          docker run --rm \
+            --network=host \
+            -e SONAR_HOST_URL="http://localhost:9000" \
+            -e SONAR_LOGIN="$SONAR_TOKEN" \
+            -v "$(pwd):/usr/src" \
+            sonarsource/sonar-scanner-cli \
+            -Dsonar.projectKey=myproject \
+            -Dsonar.sources=.
+
+      - name: Run ZAP DAST scan
+        run: |
+          docker run --rm \
+            --network=host \
+            ghcr.io/zaproxy/zaproxy:stable \
+            zap-baseline.py -t http://localhost:3000 -r zap_report.html
+
+      - name: Archive ZAP report
+        uses: actions/upload-artifact@v3
+        with:
+          name: zap-report
+          path: zap_report.html
