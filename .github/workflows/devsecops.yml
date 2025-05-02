@@ -36,6 +36,13 @@ jobs:
           scan-type: fs
           scan-ref: .
 
+      - name: Verify SonarQube reachable
+        run: |
+          docker run --rm \
+            --network devsecops-lab_default \
+            curlimages/curl:latest \
+            -I http://sonarqube:9000/api/system/health
+
       - name: Run SonarQube scan
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -48,7 +55,7 @@ jobs:
             -Dsonar.projectKey=myproject \
             -Dsonar.sources=/usr/src \
             -Dsonar.host.url=http://sonarqube:9000 \
-            -Dsonar.login="${SONAR_TOKEN}"
+            -Dsonar.token="${SONAR_TOKEN}"
 
       - name: Run ZAP DAST scan
         run: |
