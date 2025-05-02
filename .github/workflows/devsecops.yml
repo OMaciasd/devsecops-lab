@@ -37,12 +37,10 @@ jobs:
           scan-ref: .
 
       - name: Run SonarQube scan
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
           docker run --rm \
-            --network=host \
-            -e SONAR_HOST_URL="http://localhost:9000" \
+            --network=devsecops-lab_default \
+            -e SONAR_HOST_URL="http://sonarqube:9000" \
             -e SONAR_LOGIN="$SONAR_TOKEN" \
             -v "$(pwd):/usr/src" \
             sonarsource/sonar-scanner-cli \
@@ -52,9 +50,9 @@ jobs:
       - name: Run ZAP DAST scan
         run: |
           docker run --rm \
-            --network=host \
+            --network=devsecops-lab_default \
             ghcr.io/zaproxy/zaproxy:stable \
-            zap-baseline.py -t http://localhost:3000 -r zap_report.html
+            zap-baseline.py -t http://juice-shop:3000 -r zap_report.html
 
       - name: Archive ZAP report
         uses: actions/upload-artifact@v4.6.2
