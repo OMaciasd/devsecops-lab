@@ -37,15 +37,18 @@ jobs:
           scan-ref: .
 
       - name: Run SonarQube scan
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
           docker run --rm \
-            --network=devsecops-lab_default \
-            -e SONAR_HOST_URL="http://sonarqube:9000" \
-            -e SONAR_LOGIN="$SONAR_TOKEN" \
-            -v "$(pwd):/usr/src" \
-            sonarsource/sonar-scanner-cli \
+            --network devsecops-lab_default \
+            -e SONAR_TOKEN="${SONAR_TOKEN}" \
+            -v "${{ github.workspace }}:/usr/src" \
+            sonarsource/sonar-scanner-cli:latest \
             -Dsonar.projectKey=myproject \
-            -Dsonar.sources=.
+            -Dsonar.sources=/usr/src \
+            -Dsonar.host.url=http://sonarqube:9000 \
+            -Dsonar.login="${SONAR_TOKEN}"
 
       - name: Run ZAP DAST scan
         run: |
