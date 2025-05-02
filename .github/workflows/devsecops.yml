@@ -1,9 +1,13 @@
 name: DevSecOps Scan
+permissions:
+  contents: read
+  actions: read
 
 on:
   push:
     branches: [ "main" ]
   pull_request:
+    branches: [ "main" ]
 
 jobs:
   security-scan:
@@ -50,7 +54,7 @@ jobs:
             zap-baseline.py -t http://localhost:3000 -r zap_report.html
 
       - name: Archive ZAP report
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4.6.2
         with:
           name: zap-report
           path: zap_report.html
