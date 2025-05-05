@@ -38,7 +38,7 @@ jobs:
           done
 
       - name: 🐛 (scan) Run Trivy security scan
-        uses: aquasecurity/trivy-action@main
+        uses: aquasecurity/trivy-action@master
         with:
           scan-type: fs
           scan-ref: .
@@ -57,12 +57,24 @@ jobs:
             -Dsonar.projectKey=myproject \
             -Dsonar.sources=.
 
+      - name: Verificar SonarQube está disponible
+        run: |
+          curl -s http://localhost:9000
+          echo "SonarQube está listo"
+
       - name: Esperar que Juice Shop esté listo
         run: |
-          until curl -s http://localhost:3000; do
-            echo "Esperando que Juice Shop esté listo..."
+          max_attempts=12
+          attempt=0
+          until curl -s http://localhost:3000 || [ $attempt -ge $max_attempts ]; do
+            echo "Esperando que Juice Shop esté listo... Intento $attempt/$max_attempts"
             sleep 10
+            attempt=$((attempt + 1))
           done
+          if [ $attempt -ge $max_attempts ]; then
+            echo "Juice Shop no está listo después de $max_attempts intentos. Fallando el pipeline."
+            exit 1
+          fi
 
       - name: Run ZAP DAST scan
         run: |
@@ -85,4 +97,6 @@ jobs:
 
       - name: Cleanup Docker
         if: always()
-        run: docker-compose down
+        run: |
+          docker-compose down || true
+          docker network prune -f
