@@ -13,7 +13,9 @@ jobs:
 
     steps:
       - name: Crear red Docker
-        run: docker network create devsecops-lab || true
+        run: |
+          docker network create devsecops-lab || true
+          docker network ls
 
       - name: Checkout repo
         uses: actions/checkout@v3
@@ -27,16 +29,16 @@ jobs:
       - name: Verificar Docker Compose
         run: docker-compose --version
 
-      - name: Start local lab
+      - name: ✨ (ci) Setup Docker Buildx
         run: |
           docker-compose up -d
           until curl -s http://localhost:9000; do
             echo "Esperando que SonarQube esté listo..."
-            sleep 5
+            sleep 10
           done
 
-      - name: Trivy scan
-        uses: aquasecurity/trivy-action@v0.29.0  # O usar `main`
+      - name: 🐛 (scan) Run Trivy security scan
+        uses: aquasecurity/trivy-action@main
         with:
           scan-type: fs
           scan-ref: .
@@ -59,7 +61,7 @@ jobs:
         run: |
           until curl -s http://localhost:3000; do
             echo "Esperando que Juice Shop esté listo..."
-            sleep 5
+            sleep 10
           done
 
       - name: Run ZAP DAST scan
