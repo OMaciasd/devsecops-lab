@@ -1,33 +1,59 @@
+version: "3.8"
+
 services:
   db:
     image: postgres:13
     environment:
-      - POSTGRES_USER=sonar
-      - POSTGRES_PASSWORD=sonar
-      - POSTGRES_DB=sonar
+      POSTGRES_USER: sonar
+      POSTGRES_PASSWORD: sonar
+      POSTGRES_DB: sonar
+    volumes:
+      - db:/var/lib/postgresql/data
+    networks:
+      - devsecops-lab
 
   sonarqube:
     image: sonarqube:latest
     ports:
       - "9000:9000"
     environment:
-      - SONAR_JDBC_URL=jdbc:postgresql://db:5432/sonar
-      - SONAR_JDBC_USERNAME=sonar
-      - SONAR_JDBC_PASSWORD=sonar
+      SONAR_JDBC_URL: jdbc:postgresql://db:5432/sonar
+      SONAR_JDBC_USERNAME: sonar
+      SONAR_JDBC_PASSWORD: sonar
     depends_on:
       - db
+    networks:
+      - devsecops-lab
 
   zap:
     image: ghcr.io/zaproxy/zaproxy:stable
     command: zap.sh -daemon -host 0.0.0.0 -port 8090 -config api.disablekey=true
     ports:
       - "8090:8090"
+    networks:
+      - devsecops-lab
 
   juice-shop:
     image: bkimminich/juice-shop
     ports:
       - "3000:3000"
+    networks:
+      - devsecops-lab
+
+  ngrok:
+    image: wernight/ngrok
+    container_name: ngrok
+    environment:
+      NGROK_AUTHTOKEN: your_ngrok_authtoken  # Asegúrate de agregar tu token de ngrok
+      NGROK_PORT: juice-shop:3000  # El puerto de juice-shop
+    ports:
+      - "4040:4040"  # Interfaz web de ngrok
+    networks:
+      - devsecops-lab
 
 volumes:
-  jenkins_home:
   db:
+
+networks:
+  devsecops-lab:
+    name: devsecops-lab_default

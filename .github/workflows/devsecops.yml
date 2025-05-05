@@ -4,8 +4,6 @@ permissions:
   actions: read
 
 on:
-  push:
-    branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
 
@@ -28,10 +26,14 @@ jobs:
       - name: Start local lab
         run: |
           docker-compose up -d
-          sleep 30  # espera a que los servicios arranquen
+          # Espera a que los servicios arranquen usando un enfoque más confiable
+          until curl -s http://localhost:9000; do
+            echo "Esperando que SonarQube esté listo..."
+            sleep 5
+          done
 
       - name: Trivy scan
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@v0.21.0  # Recomendación de usar una versión más reciente
         with:
           scan-type: fs
           scan-ref: .
@@ -41,7 +43,7 @@ jobs:
           docker run --rm \
             --network=devsecops-lab_default \
             -e SONAR_HOST_URL="http://sonarqube:9000" \
-            -e SONAR_LOGIN="$SONAR_TOKEN" \
+            -e SONAR_LOGIN="${{ secrets.SONAR_TOKEN }}" \
             -v "$(pwd):/usr/src" \
             sonarsource/sonar-scanner-cli \
             -Dsonar.projectKey=myproject \
@@ -59,3 +61,7 @@ jobs:
         with:
           name: zap-report
           path: zap_report.html
+
+      - name: Cleanup Docker
+        run: |
+          docker-compose down
