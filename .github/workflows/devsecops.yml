@@ -12,32 +12,21 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Crear red Docker
-        run: |
-          docker network create devsecops-lab || true
-          docker network ls
-
+      # Paso 1: Checkout del código del repositorio
       - name: Checkout repo
         uses: actions/checkout@v3
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Install Docker Compose plugin
-        run: sudo apt-get update && sudo apt-get install docker-compose-plugin
-
-      - name: Verificar Docker Compose
-        run: docker-compose --version
-
-      - name: ✨ (ci) Setup Docker Buildx
+      # Paso 2: Verificar si ngrok está corriendo localmente
+      - name: Verificar ngrok
         run: |
-          docker-compose up -d
-          until curl -s http://localhost:9000; do
-            echo "Esperando que SonarQube esté listo..."
-            sleep 10
-          done
+          if [ -z "$NGROK_URL" ]; then
+            echo "NGROK_URL no está definido. No se puede continuar."
+            exit 1
+          fi
+          echo "NGROK_URL está disponible: $NGROK_URL"
 
-      - name: 🐛 (scan) Run Trivy security scan
+      # Paso 3: Ejecutar Trivy para el escaneo de seguridad
+      - name: Run Trivy security scan
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: fs
@@ -46,22 +35,23 @@ jobs:
           exit-code: 0
           ignore-unfixed: true
 
+      # Paso 4: Ejecutar SonarQube scan
       - name: Run SonarQube scan
         run: |
-          docker run --rm \
-            --network=devsecops-lab_default \
-            -e SONAR_HOST_URL="http://sonarqube:9000" \
-            -e SONAR_LOGIN="${{ secrets.SONAR_TOKEN }}" \
-            -v "$(pwd):/usr/src" \
-            sonarsource/sonar-scanner-cli \
+          # Ejecutar sonar-scanner con la URL proporcionada por ngrok
+          sonar-scanner \
             -Dsonar.projectKey=myproject \
-            -Dsonar.sources=.
+            -Dsonar.sources=. \
+            -Dsonar.host.url=http://${{ secrets.SONARQUBE_URL }} \
+            -Dsonar.login="${{ secrets.SONAR_TOKEN }}"
 
-      - name: Verificar SonarQube está disponible
+      # Paso 5: Verificar si SonarQube está disponible
+      - name: Verificar SonarQube
         run: |
-          curl -s http://localhost:9000
-          echo "SonarQube está listo"
+          curl -s http://${{ secrets.SONARQUBE_URL }} | grep "SonarQube"
+          echo "SonarQube está disponible y listo para escanear."
 
+      # Paso 6: Esperar que la aplicación Juice Shop esté disponible para escanear
       - name: Esperar que Juice Shop esté listo
         run: |
           max_attempts=12
@@ -76,27 +66,22 @@ jobs:
             exit 1
           fi
 
+      # Paso 7: Ejecutar escaneo DAST con ZAP (OWASP Zed Attack Proxy)
       - name: Run ZAP DAST scan
         run: |
-          docker run --rm \
-            --network=devsecops-lab_default \
-            ghcr.io/zaproxy/zaproxy:stable \
-            zap-baseline.py -t http://juice-shop:3000 -r zap_report.html
+          # Escaneo de seguridad con ZAP, directamente sobre Juice Shop
+          zap-baseline.py -t http://juice-shop:3000 -r zap_report.html
 
-      - name: Ensure docker-compose alias exists
-        run: |
-          if ! command -v docker-compose &> /dev/null; then
-            sudo ln -s /usr/libexec/docker/cli-plugins/docker-compose /usr/local/bin/docker-compose || true
-          fi
-
+      # Paso 8: Archivar el reporte de ZAP
       - name: Archive ZAP report
         uses: actions/upload-artifact@v4.6.2
         with:
           name: zap-report
           path: zap_report.html
 
-      - name: Cleanup Docker
-        if: always()
-        run: |
-          docker-compose down || true
-          docker network prune -f
+      # Paso 9: Archivar los resultados del escaneo de SonarQube (si es necesario)
+      - name: Archive SonarQube report
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: sonar-report
+          path: sonar-report.json
