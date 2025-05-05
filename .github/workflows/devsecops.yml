@@ -24,6 +24,9 @@ jobs:
       - name: Install Docker Compose plugin
         run: sudo apt-get update && sudo apt-get install docker-compose-plugin
 
+      - name: Verificar Docker Compose
+        run: docker-compose --version
+
       - name: Start local lab
         run: |
           docker-compose up -d
@@ -33,7 +36,7 @@ jobs:
           done
 
       - name: Trivy scan
-        uses: aquasecurity/trivy-action@v0.30.0
+        uses: aquasecurity/trivy-action@v0.29.0  # O usar `main`
         with:
           scan-type: fs
           scan-ref: .
