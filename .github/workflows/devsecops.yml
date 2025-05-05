@@ -33,7 +33,7 @@ jobs:
           done
 
       - name: Trivy scan
-        uses: aquasecurity/trivy-action@v0.21.0  # Recomendación de usar una versión más reciente
+        uses: aquasecurity/trivy-action@v0.30.0
         with:
           scan-type: fs
           scan-ref: .
